@@ -16,22 +16,6 @@ at(Robot, X, do(A, S)) :-
 /* We only need this for fluents */
 restoreSitArg(at(R, L), S, at(R, L, S)).
 
-proc(walk_somewhere(R),
-    pi(to,
-        walk(R,to)
-    )
-).
-
-proc(loop,
-    star(
-        pi(r,
-            ?(robot(r)):
-            walk_somewhere(r)
-        )
-    ) :
-    ?(at(r1, room4))
-).
-
 robot(r1).
 
 next_to(room1, room2).
