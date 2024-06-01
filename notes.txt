@@ -1,0 +1,7 @@
+swipl
+
+consult('file').
+
+holds(at(r1, room2), S),do(walk_somewhere(r1),s0, S).
+
+trace.
