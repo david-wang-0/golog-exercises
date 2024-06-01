@@ -8,15 +8,16 @@
 :- dynamic(config_fulfilled/2).
 :- dynamic(badSituation/2).
 
-primitive_action(move(Robot, From, To)).
+primitive_action(move(Robot, From, To, FPre, FPost)).
 primitive_action(recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo)).
 primitive_action(stop_and_guard(Robot, Location)).
 primitive_action(verify_guard_config(Config)).
 
-poss(move(Robot, From, To), S) :- 
+poss(move(Robot, From, To, FPre, FPost), S) :- 
     at(Robot, From, S), 
     not(stopped(Robot, S)),
     battery(Robot, FPre, S),
+    battery_predecessor(FPost, FPre),
     (connected(From, To); connected(To, From)).
 
 poss(recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), S) :-
@@ -24,7 +25,9 @@ poss(recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), S) :-
     at(RFrom, Loc, S),
     at(RTo, Loc, S),
     battery(RFrom, FPreFrom, S),
-    battery(RTo, FPreTo, S)
+    battery(RTo, FPreTo, S),
+    battery_predecessor(FPostFrom, FPreFrom),
+    battery_predecessor(FPreTo, FPostTo)
     .
 
 poss(stop_and_guard(R, L), S) :-
@@ -40,27 +43,23 @@ poss(verify_guard_config(C), S) :-
     ).
 
 at(Robot, Loc, do(A, S)) :- 
-    A = move(Robot, From, Loc);
-    (not(A = move(Robot, Y)), at(Robot, Loc, S)).
+    A = move(Robot, From, Loc, FPre, FPost);
+    (not(A = move(Robot, Y, FPre, FPost)), at(Robot, Loc, S)).
 
 battery(Robot, FPost, do(A, S)) :-
     (
         (
-            A = move(Robot, X, Y), 
+            A = move(Robot, X, Y, FPre, FPost), 
             battery_predecessor(FPost, FPre), 
             battery(Robot, FPre, S)
         );
         (
-            A = recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), 
-            battery_predecessor(FPostFrom, FPreFrom),
-            FPostFrom = FPost,
-            RFrom = Robot
+            A = recharge(Robot, RTo, Loc, FPreFrom, FPost, FPreTo, FPostTo), 
+            battery_predecessor(FPost, FPreFrom)
         );
         (
-            A = recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), 
-            battery_predecessor(FPreTo, FPostTo),
-            FPostTo = FPost,
-            RTo = Robot
+            A = recharge(RFrom, Robot, Loc, FPreFrom, FPostFrom, FPreTo, FPost), 
+            battery_predecessor(FPreTo, FPost)
         )
     );
     (
