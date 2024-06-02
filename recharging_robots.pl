@@ -109,13 +109,8 @@ guarded(L, do(A, S)) :-
 
 
 config_fulfilled(Config, do(A, S)) :-
-    (
-        A = verify_guard_config(Config)
-    );
-    (
-        \+ (A = verify_guard_config(C)),
-        config_fulfilled(Config, S)
-    ).
+    A = verify_guard_config(Config);
+    config_fulfilled(Config, S).
 
 
 % It is necessary to restore situation arguments
