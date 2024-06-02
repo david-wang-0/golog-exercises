@@ -21,14 +21,17 @@ poss(move(Robot, From, To, FPre, FPost), S) :-
     (connected(From, To); connected(To, From)).
 
 poss(recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), S) :-
-    not(RFrom = RTo),
     at(RFrom, Loc, S),
     at(RTo, Loc, S),
     battery(RFrom, FPreFrom, S),
     battery(RTo, FPreTo, S),
     battery_predecessor(FPostFrom, FPreFrom),
-    battery_predecessor(FPreTo, FPostTo)
+    battery_predecessor(FPreTo, FPostTo),
+    not(RFrom = RTo)
     .
+    % This was a pain to debug
+    % Checking that the actual entities denoted by terms are not equal must be done using = (semantic equality?)
+    % after unification
 
 poss(stop_and_guard(R, L), S) :-
     \+ (stopped(R, S)),
@@ -44,26 +47,16 @@ poss(verify_guard_config(C), S) :-
 
 at(Robot, Loc, do(A, S)) :- 
     A = move(Robot, From, Loc, FPre, FPost);
-    (not(A = move(Robot, Y, FPre, FPost)), at(Robot, Loc, S)).
+    (not(A = move(Robot, X, Y, FPre, FPost)), at(Robot, Loc, S)).
 
 battery(Robot, FPost, do(A, S)) :-
     (
-        (
-            A = move(Robot, X, Y, FPre, FPost), 
-            battery_predecessor(FPost, FPre), 
-            battery(Robot, FPre, S)
-        );
-        (
-            A = recharge(Robot, RTo, Loc, FPreFrom, FPost, FPreTo, FPostTo), 
-            battery_predecessor(FPost, FPreFrom)
-        );
-        (
-            A = recharge(RFrom, Robot, Loc, FPreFrom, FPostFrom, FPreTo, FPost), 
-            battery_predecessor(FPreTo, FPost)
-        )
+        A = move(Robot, X, Y, Z, FPost);
+        A = recharge(Robot, RTo, Loc, FPreFrom, FPost, FPreTo, FPostTo);
+        A = recharge(RFrom, Robot, Loc, FPreFrom, FPostFrom, FPreTo, FPost)
     );
     (
-        not(A = move(Robot, X, Y)),
+        not(A = move(Robot, X, Y, Pre, Post)),
         not(A = recharge(Robot, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo)),
         not(A = recharge(RFrom, Robot, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo)),
         battery(Robot, FPost, S)
@@ -72,7 +65,7 @@ battery(Robot, FPost, do(A, S)) :-
 total_cost(Level, do(A, S)) :-
     (
         (
-            A = move(Robot, X, Y), 
+            A = move(Robot, X, Y, From, To), 
             add(Old, C, Level), 
             move_cost(C), 
             total_cost(Old, S)
@@ -85,7 +78,7 @@ total_cost(Level, do(A, S)) :-
         )
     );
     (
-        not(A = move(Robot, X, Y)), 
+        not(A = move(Robot, X, Y, From, To)), 
         not(A = recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo)),
         total_cost(Level, S)
     ).
@@ -95,7 +88,8 @@ stopped(R, do(A, S)) :-
         A = stop_and_guard(R, L)
     );
     (
-        \+ (A = verify_guard_config(C))
+        not (A = verify_guard_config(C)),
+        stopped(R, S)
     ).
 
 guarded(L, do(A, S)) :-
@@ -116,11 +110,12 @@ config_fulfilled(Config, do(A, S)) :-
         A = verify_guard_config(Config)
     );
     (
-        \+ (A = verify_guard_config(Config)),
+        \+ (A = verify_guard_config(C)),
         config_fulfilled(Config, S)
     ).
 
 
+% It is necessary to restore situation arguments
 
 restoreSitArg(at(R, L), S, at(R, L, S)).
 restoreSitArg(battery(R, B), S, battery(R, B, S)).
@@ -129,6 +124,7 @@ restoreSitArg(stopped(R), S, stopped(R, S)).
 restoreSitArg(guarded(L), S, guarded(L, S)).
 restoreSitArg(config_fulfilled(C), S, config_fulfilled(C, S)).
 
+% Non-fluent predicates
 
 move_cost(1).
 recharge_cost(1).
@@ -200,33 +196,60 @@ connected(location_0011, location_0012).
 connected(location_0017, location_0028).
 connected(location_0001, location_0022).
 
+battery_predecessor(battery_0000, battery_0001).
+battery_predecessor(battery_0001, battery_0002).
+battery_predecessor(battery_0003, battery_0004).
+battery_predecessor(battery_0004, battery_0005).
+battery_predecessor(battery_0002, battery_0003).
 
-battery_predecessor(battery-0000, battery-0001).
-battery_predecessor(battery-0001, battery-0002).
-battery_predecessor(battery-0003, battery-0004).
-battery_predecessor(battery-0004, battery-0005).
-battery_predecessor(battery-0002, battery-0003).
+% Initial situation
 
 at(robot_00, location_0027, s0).
-battery(robot_00, battery-0005, s0).
+battery(robot_00, battery_0005, s0).
 at(robot_01, location_0027, s0).
-battery(robot_01, battery-0000, s0).
+battery(robot_01, battery_0000, s0).
 
+% The goal
 
+goal(S) :- 
+    at(robot_00, location_0028, S),
+    at(robot_01, location_0003, S).
 
+% A bfs planner
 
-proc(wspbf(N), ?(initializeSitCount) : ?(initializeCPU) : plans(0,N)).
+proc(wspbf(N), 
+    ?(initializeSitCount) : 
+    ?(initializeCPU) : 
+    plans(0,N)
+).
+
 proc(plans(M,N),
-    ?(M =< N) :
-    (actionSequence(M) : ?(goal) :
-    ?(reportSuccess) : ?(prettyPrintSituation) #
-    pi(m1, ?(m1 is M + 1) :
-    ?(reportLevel(m1)) : plans(m1,N)))).
-    proc(actionSequence(N),
+    ?(M =< N) : (
+        actionSequence(M) : 
+        ?(goal) :
+        ?(reportSuccess) : 
+        ?(prettyPrintSituation) #
+        pi(m1, 
+            ?(m1 is M + 1) :
+            ?(reportLevel(m1)) : 
+            plans(m1,N)
+        )
+    )
+).
+
+proc(actionSequence(N),
     ?(N = 0) #
-    ?(N > 0) : pi(a,?(primitive_action(a)) : a) :
-    ?(-badSituation) : ?(incrementSitCount) :
-    pi(n1, ?(n1 is N - 1) : actionSequence(n1))).
+    ?(N > 0) : 
+    pi(a,
+        ?(primitive_action(a)) : 
+        a
+    ) :
+    ?(-badSituation) : 
+    ?(incrementSitCount) :
+    pi(n1, 
+        ?(n1 is N - 1) : 
+        actionSequence(n1)
+    )).
 
 planbf(N) :- do(wspbf(N),s0,S), askForMore.
 
@@ -267,17 +290,54 @@ restoreSitArg(badSituation,S,badSituation(S)).
 restoreSitArg(goal,S,goal(S)).
 askForMore :- write('More? '), read(n).
 
-badSituation(do(move(Robot, From, To), S)) :-
-    not(poss(move(Robot, From, To), S)).
-badSituation(do(recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), S)) :-
-    not(poss(recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), S)).
-badSituation(do(stop_and_guard(Robot, Location), S)) :-
-    not(poss(stop_and_guard(Robot, Location), S)).
-badSituation(do(verify_guard_config(Config), S)) :-
-    not(poss(verify_guard_config(Config), S)).
+% General filter for more situations (like a PDDL problem)
+
+badSituation(do(A, S)) :- false.
 
 guard_config(C, L) :- false.
+
+% Partial plans and search in one
+
+proc(search(N),
+    ?(initializeSitCount) :
+    ?(initializeCPU) :
+    plans(0, N)
+).
+
+proc(p_plan,
+    recharge(robot_00, robot_01, location_0027, battery_0005, battery_0004, battery_0000, battery_0001) :
+    recharge(robot_00, robot_01, location_0027, battery_0004, battery_0003, battery_0001, battery_0002) :
+    recharge(robot_00, robot_01, location_0027, battery_0003, battery_0002, battery_0002, battery_0003) :
+    recharge(robot_00, robot_01, location_0027, battery_0002, battery_0001, battery_0003, battery_0004) :
+    pi(a,
+        ?(primitive_action(a)) :
+        a
+    ) :
+    move(robot_01, location_0027, location_0026, battery_0004, battery_0003) :
+    search(6)
+).
+
+proc(f_plan,
+    recharge(robot_00, robot_01, location_0027, battery_0005, battery_0004, battery_0000, battery_0001) :
+    recharge(robot_00, robot_01, location_0027, battery_0004, battery_0003, battery_0001, battery_0002) :
+    recharge(robot_00, robot_01, location_0027, battery_0003, battery_0002, battery_0002, battery_0003) :
+    recharge(robot_00, robot_01, location_0027, battery_0002, battery_0001, battery_0003, battery_0004) :
+    move(robot_00, location_0027, location_0028, battery_0001, battery_0000) :
+    move(robot_01, location_0027, location_0026, battery_0004, battery_0003) :
+    move(robot_01, location_0026, location_0009, battery_0003, battery_0002) :
+    move(robot_01, location_0009, location_0021, battery_0002, battery_0001) :
+    move(robot_01, location_0021, location_0003, battery_0001, battery_0000) :
+    ?(goal)
+).
+
+proc(idk,
+    recharge(robot_00, robot_01, location_0027, battery_0005, battery_0004, battery_0000, battery_0001) :
+    recharge(robot_00, robot_01, location_0027, battery_0004, battery_0003, battery_0001, battery_0002) :
+    recharge(robot_00, robot_01, location_0027, battery_0003, battery_0002, battery_0002, battery_0003) :
+    recharge(robot_00, robot_01, location_0027, battery_0002, battery_0001, battery_0003, battery_0004)
+).
+
+partial_plan :- do(p_plan, s0, S).
+
+full_plan :- do(f_plan, s0, S).
     
-goal(S) :- 
-    at(robot_00, location_0028, S),
-    at(robot_01, location_0003, S).

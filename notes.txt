@@ -5,3 +5,30 @@ consult('file').
 holds(at(r1, room2), S),do(walk_somewhere(r1),s0, S).
 
 trace.
+
+
+holds(at(robot_00, location_0028), S), do(move(robot_00, location_0027, location_0028, battery_0005, battery_0004), s0, S).
+
+poss(recharge(robot_00, robot_01, location_0027, battery_0004, battery_0003, battery_0001, battery_0002), S), do(recharge(robot_00, robot_01, location_0027, battery_0005, battery_0004, battery_0000, battery_0001), s0, S).
+
+move(robot_00, location_0027, location_0028, battery_0005, battery_0004)
+
+do(
+    recharge(robot_00, robot_01, location_0027, battery_0005, battery_0004, battery_0000, battery_0001) :
+    recharge(robot_00, robot_01, location_0027, battery_0004, battery_0003, battery_0001, battery_0002) :
+    recharge(robot_00, robot_01, location_0027, battery_0003, battery_0002, battery_0002, battery_0003) :
+    recharge(robot_00, robot_01, location_0027, battery_0002, battery_0001, battery_0003, battery_0004) :
+    move(robot_00, location_0027, location_0028, battery_0001, battery_0000) :
+    pi(a,
+        ?(primitive_action(a)) : 
+        a
+    ), s0, S).
+
+
+do(
+    recharge(robot_00, robot_01, location_0027, battery_0005, battery_0004, battery_0000, battery_0001) :
+    recharge(robot_00, robot_01, location_0027, battery_0004, battery_0003, battery_0001, battery_0002) :
+    pi(a,
+        ?(primitive_action(a)) : 
+        a
+    ), s0, S).
