@@ -17,11 +17,11 @@ primitive_action(stop_and_guard(Robot, Location)).
 primitive_action(verify_guard_config(Config)).
 
 poss(move(Robot, From, To, FPre, FPost), S) :- 
-    at(Robot, From, S), 
-    not(stopped(Robot, S)),
+    at(Robot, From, S),
     battery(Robot, FPre, S),
     battery_predecessor(FPost, FPre),
-    (connected(From, To); connected(To, From)).
+    (connected(From, To); connected(To, From))., 
+    not(stopped(Robot, S))
 
 poss(recharge(RFrom, RTo, Loc, FPreFrom, FPostFrom, FPreTo, FPostTo), S) :-
     at(RFrom, Loc, S),
