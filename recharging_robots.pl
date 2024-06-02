@@ -1,5 +1,8 @@
 :- ensure_loaded('golog_interpreter_eclipse.pl').
 
+% GOLOG version of 2023 IPC domain recharging robots: https://github.com/ipc2023-classical/domain-recharging-robots
+% Also includes p01.prob and p01.plan from here: https://github.com/ipc2023-classical/ipc2023-dataset/tree/main/opt/recharging-robots
+
 :- dynamic(at/3).
 :- dynamic(battery/3).
 :- dynamic(total_cost/2).
@@ -215,7 +218,7 @@ goal(S) :-
     at(robot_00, location_0028, S),
     at(robot_01, location_0003, S).
 
-% A bfs planner
+% A bfs planner from Raymond Reiter's book: Knowledge in Action
 
 proc(wspbf(N), 
     ?(initializeSitCount) : 
@@ -330,12 +333,6 @@ proc(f_plan,
     ?(goal)
 ).
 
-proc(idk,
-    recharge(robot_00, robot_01, location_0027, battery_0005, battery_0004, battery_0000, battery_0001) :
-    recharge(robot_00, robot_01, location_0027, battery_0004, battery_0003, battery_0001, battery_0002) :
-    recharge(robot_00, robot_01, location_0027, battery_0003, battery_0002, battery_0002, battery_0003) :
-    recharge(robot_00, robot_01, location_0027, battery_0002, battery_0001, battery_0003, battery_0004)
-).
 
 partial_plan :- do(p_plan, s0, S).
 
